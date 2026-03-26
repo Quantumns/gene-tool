@@ -172,7 +172,22 @@
         .base-T { color: var(--base-T); font-weight: bold; }
         .base-G { color: var(--base-G); font-weight: bold; }
         .base-C { color: var(--base-C); font-weight: bold; }
-        .mutation { color: var(--diff-text); background: var(--diff-bg); border-radius: 4px; padding: 0 2px; box-shadow: 0 0 0 1px var(--diff-text); }
+        .mutation { color: var(--diff-text); background: var(--diff-bg); border-radius: 4px; padding: 0 2px; box-shadow: 0 0 0 1px var(--diff-text); cursor: help; }
+        .mutation-missense { color: #ff9f0a; background: rgba(255,159,10,0.15); box-shadow: 0 0 0 1px #ff9f0a; }
+        .mutation-nonsense { color: #ff453a; background: rgba(255,69,58,0.15); box-shadow: 0 0 0 1px #ff453a; }
+        .mutation-silent   { color: #30d158; background: rgba(48,209,88,0.15);  box-shadow: 0 0 0 1px #30d158; }
+
+        .variant-summary { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .variant-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .variant-badge.missense { background: rgba(255,159,10,0.2); color: #ff9f0a; }
+        .variant-badge.nonsense { background: rgba(255,69,58,0.2);  color: #ff453a; }
+        .variant-badge.silent   { background: rgba(48,209,88,0.2);  color: #30d158; }
+
+        .primer-warning { padding: 8px 12px; border-radius: 8px; background: rgba(255,159,10,0.15); border: 1px solid rgba(255,159,10,0.4); color: #ff9f0a; font-size: 0.8rem; margin-top: 8px; display: none; }
+        .primer-warning.show { display: block; }
+        .primer-length-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .primer-length-row label { font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+        .primer-length-row input[type=number] { width: 80px; height: 38px; padding: 8px 12px; flex-grow: 0; }
 
         /* LEGEND & LINKS */
         .legend-box { margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border); }
@@ -288,7 +303,11 @@
             <div class="input-group"><span class="input-label">Reference</span><textarea id="mutRef" placeholder="e.g. ATGC..." oninput="smartCheck(this); saveState(this)"></textarea><div class="status-bar"></div></div>
             <div class="input-group"><span class="input-label">Patient</span><textarea id="mutPat" placeholder="e.g. ATCC..." oninput="smartCheck(this); saveState(this)"></textarea><div class="status-bar"></div></div>
             <button class="action-btn" onclick="runMutation()">Compare Sequences</button>
-            <div id="mutResult" class="result-area"><span class="input-label">Result:</span><div id="mutOutput" class="res-val"></div></div>
+            <div id="mutResult" class="result-area">
+                <span class="input-label">Sequence Diff:</span>
+                <div id="mutOutput" class="res-val"></div>
+                <div id="mutAnnotation" class="variant-summary"></div>
+            </div>
         </div>
 
         <div class="card" id="card-restriction">
@@ -321,11 +340,21 @@
             <div class="card-glare"></div>
             <div class="card-header">
                 <h2>🔎 Primer Design</h2>
-                <div class="info-icon" data-tooltip="Identifies Forward & Reverse primers and calculates Melting Temp (Tm).">i</div>
+                <div class="info-icon" data-tooltip="Designs Forward & Reverse primers with Tm, and checks for primer-dimer and hairpin formation.">i</div>
             </div>
             <div class="input-group"><textarea id="primerInput" placeholder="Enter Gene (>20bp)..." oninput="smartCheck(this); saveState(this)"></textarea><div class="status-bar"></div></div>
-            <button class="action-btn" onclick="runPrimer()">Design</button>
-            <div id="primerResult" class="result-area"><span class="input-label">Forward (Tm):</span><div id="resFwd" class="res-val"></div></div>
+            <div class="primer-length-row">
+                <label>Primer Length (bp):</label>
+                <input type="number" id="primerLen" value="20" min="15" max="35" oninput="saveState(this)">
+            </div>
+            <button class="action-btn" onclick="runPrimer()">Design Primers</button>
+            <div id="primerResult" class="result-area">
+                <span class="input-label">Forward Primer (Tm):</span>
+                <div id="resFwd" class="res-val"></div>
+                <span class="input-label" style="margin-top:10px; display:block;">Reverse Primer (Tm):</span>
+                <div id="resRev" class="res-val"></div>
+                <div id="primerWarnings"></div>
+            </div>
         </div>
 
         <div class="card" id="card-codon">
@@ -403,7 +432,7 @@
     <div class="dev-hub">
         <h2 style="justify-content: center;">Created for Biologists</h2>
         <div class="dev-buttons">
-            <a href="mailto:enes.aydin.bsns@gmail.com?subject=Gene%20Studio%20Inquiry" class="contact-btn" onclick="playDrafting()">✉️ Contact Enes</a>
+            <a href="/cdn-cgi/l/email-protection#c9aca7acbae7a8b0ada0a7e7abbaa7ba89aea4a8a0a5e7aaa6a4f6babcaba3acaabdf48eaca7acecfbf99abdbcada0a6ecfbf980a7b8bca0bbb0" class="contact-btn" onclick="playDrafting()">✉️ Contact Enes</a>
             <button onclick="triggerConfetti()" class="thank-btn">🎉 Say Thanks</button>
         </div>
     </div>
@@ -416,7 +445,7 @@
 
 <div id="toast">Copied!</div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
     /* --- AUDIO ENGINE --- */
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playBeep() { if(audioCtx.state === 'suspended') audioCtx.resume(); const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.frequency.setValueAtTime(523.25, audioCtx.currentTime); g.gain.setValueAtTime(0.05, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.3); }
@@ -583,10 +612,36 @@
 
     /* --- TOOLS --- */
     function runMutation(){
+        const CODON_TABLE={'ATA':'I','ATC':'I','ATT':'I','ATG':'M','ACA':'T','ACC':'T','ACG':'T','ACT':'T','AAC':'N','AAT':'N','AAA':'K','AAG':'K','AGC':'S','AGT':'S','AGA':'R','AGG':'R','CTA':'L','CTC':'L','CTG':'L','CTT':'L','CCA':'P','CCC':'P','CCG':'P','CCT':'P','CAC':'H','CAT':'H','CAA':'Q','CAG':'Q','CGA':'R','CGC':'R','CGG':'R','CGT':'R','GTA':'V','GTC':'V','GTG':'V','GTT':'V','GCA':'A','GCC':'A','GCG':'A','GCT':'A','GAC':'D','GAT':'D','GAA':'E','GAG':'E','GGA':'G','GGC':'G','GGG':'G','GGT':'G','TCA':'S','TCC':'S','TCG':'S','TCT':'S','TTC':'F','TTT':'F','TTA':'L','TTG':'L','TAC':'Y','TAT':'Y','TAA':'*','TAG':'*','TGC':'C','TGT':'C','TGA':'*','TGG':'W'};
         let r=clean(document.getElementById('mutRef').value), p=clean(document.getElementById('mutPat').value);
-        if(!r||!p)return; let o="", m=Math.max(r.length,p.length);
-        for(let i=0;i<m;i++){let a=r[i]||"-",b=p[i]||"-";o+=(a!==b)?`<span class="mutation">${b}</span>`:b;}
-        document.getElementById('mutOutput').innerHTML=o; showRes('mutResult');
+        if(!r||!p)return;
+        let o="", m=Math.max(r.length,p.length);
+        let counts={missense:0,nonsense:0,silent:0,indel:0};
+        for(let i=0;i<m;i++){
+            let a=r[i]||"-", b=p[i]||"-";
+            if(a!==b){
+                let cs=Math.floor(i/3)*3;
+                let rC=r.substring(cs,cs+3), pC=p.substring(cs,cs+3);
+                let vType='indel', tipText=`Pos ${i+1}: ${a}→${b}`;
+                if(rC.length===3&&pC.length===3){
+                    let rAA=CODON_TABLE[rC]||'?', pAA=CODON_TABLE[pC]||'?';
+                    if(pAA==='*')      { vType='nonsense'; tipText=`Nonsense @ pos ${i+1}: ${rC}→${pC} (${rAA==='*'?'Stop':rAA}→Stop)`; }
+                    else if(rAA===pAA) { vType='silent';   tipText=`Silent @ pos ${i+1}: ${rC}→${pC} (${rAA} unchanged)`; }
+                    else               { vType='missense';  tipText=`Missense @ pos ${i+1}: ${rC}→${pC} (${rAA==='*'?'Stop':rAA}→${pAA})`; }
+                    counts[vType]++;
+                } else { counts.indel++; }
+                o+=`<span class="mutation mutation-${vType}" title="${tipText}">${b}</span>`;
+            } else { o+=b; }
+        }
+        document.getElementById('mutOutput').innerHTML=o;
+        let badges='';
+        if(counts.missense)  badges+=`<span class="variant-badge missense">${counts.missense} Missense</span>`;
+        if(counts.nonsense)  badges+=`<span class="variant-badge nonsense">${counts.nonsense} Nonsense</span>`;
+        if(counts.silent)    badges+=`<span class="variant-badge silent">${counts.silent} Silent</span>`;
+        if(counts.indel)     badges+=`<span class="variant-badge" style="background:rgba(150,150,150,0.2);color:var(--text-secondary)">${counts.indel} Indel</span>`;
+        if(!badges) badges='<span style="color:var(--text-secondary)">✅ No mutations found</span>';
+        document.getElementById('mutAnnotation').innerHTML=badges;
+        showRes('mutResult');
     }
     function runRE(){
         let d=clean(document.getElementById('reInput').value);
@@ -612,14 +667,53 @@
         let p="";for(let i=0;i<d.length;i+=3)p+=m[d.substring(i,i+3)]||"?";
         document.getElementById('resProtein').innerText=p; showRes('dogmaResult');
     }
-    function runPrimer(){ let d=clean(document.getElementById('primerInput').value);if(d.length<20)return; let f=d.substring(0,20); document.getElementById('resFwd').innerText=`${f} (${getTm(f)}°C)`; showRes('primerResult'); }
+    function revComp(s){const c={'A':'T','T':'A','G':'C','C':'G'};return s.split('').reverse().map(b=>c[b]||b).join('');}
+    function checkHairpin(seq){
+        // Check if the 3' end (last 6bp) can anneal within the same primer
+        const tail=revComp(seq.slice(-6));
+        return seq.slice(0,-6).includes(tail);
+    }
+    function checkDimer(f,r){
+        // Check if 3' end of forward can bind 3' end of reverse
+        const fTail=revComp(f.slice(-5));
+        const rTail=revComp(r.slice(-5));
+        return r.slice(-10).includes(fTail)||f.slice(-10).includes(rTail);
+    }
+    function runPrimer(){
+        let d=clean(document.getElementById('primerInput').value);
+        let len=parseInt(document.getElementById('primerLen').value)||20;
+        len=Math.max(15,Math.min(35,len));
+        if(d.length<len)return showToast(`Need at least ${len}bp sequence`);
+        let f=d.substring(0,len);
+        let r=revComp(d.substring(d.length-len));
+        let tmF=getTm(f), tmR=getTm(r);
+        document.getElementById('resFwd').innerText=`5'-${f}-3'  (Tm: ${tmF}°C)`;
+        document.getElementById('resRev').innerText=`5'-${r}-3'  (Tm: ${tmR}°C)`;
+        // Warnings
+        let warnings=[];
+        if(Math.abs(tmF-tmR)>5) warnings.push(`⚠️ Tm mismatch: Forward ${tmF}°C vs Reverse ${tmR}°C (diff ${Math.abs(tmF-tmR)}°C). PCR may be unreliable — aim for ≤5°C difference.`);
+        if(checkHairpin(f)) warnings.push(`⚠️ Forward primer may form a hairpin (3' self-complementarity detected).`);
+        if(checkHairpin(r)) warnings.push(`⚠️ Reverse primer may form a hairpin (3' self-complementarity detected).`);
+        if(checkDimer(f,r)) warnings.push(`⚠️ Primer-dimer risk: Forward and Reverse 3' ends may anneal to each other.`);
+        const wDiv=document.getElementById('primerWarnings');
+        wDiv.innerHTML=warnings.map(w=>`<div class="primer-warning show">${w}</div>`).join('');
+        showRes('primerResult');
+    }
     function runCodonOpt(){
         let p=clean(document.getElementById('codonInput').value);
         const m={'A':'GCG','R':'CGT','N':'AAC','D':'GAT','C':'TGC','Q':'CAG','E':'GAA','G':'GGC','H':'CAT','I':'ATT','L':'CTG','K':'AAA','M':'ATG','F':'TTT','P':'CCG','S':'AGC','T':'ACC','W':'TGG','Y':'TAT','V':'GTG','_':'TAA'};
         let d="";for(let c of p)d+=m[c]||"?"; document.getElementById('resCodon').innerText=d; showRes('codonResult');
     }
     function runMath(){ let m=parseFloat(document.getElementById('mwVal').value),v=parseFloat(document.getElementById('volVal').value),c=parseFloat(document.getElementById('concVal').value); if(m&&v&&c)document.getElementById('mathOutput').innerText=`${(m*v*c).toFixed(3)}g`; showRes('mathResult'); }
-    function runClean(){document.getElementById('cleanOutput').innerText=clean(document.getElementById('cleanInput').value).match(/.{1,10}/g).join(' ');showRes('cleanResult');}
+    function runClean(){
+        let raw=document.getElementById('cleanInput').value;
+        // Strip FASTA header lines (lines starting with ">")
+        let seq=raw.split('\n').filter(line=>!line.trim().startsWith('>')).join('\n');
+        let cleaned=clean(seq);
+        if(!cleaned)return;
+        document.getElementById('cleanOutput').innerText=cleaned.match(/.{1,10}/g).join(' ');
+        showRes('cleanResult');
+    }
     function runMW(){document.getElementById('mwOutput').innerText=`${(clean(document.getElementById('mwSeqInput').value).length*110/1000).toFixed(1)} kDa`;showRes('mwResult');}
     function runGC(){let d=clean(document.getElementById('gcInput').value);document.getElementById('resGC').innerText=(((d.match(/[GC]/g)||[]).length/d.length)*100).toFixed(1)+"%";showRes('gcResult');}
 
@@ -644,9 +738,13 @@
         "“Without enzymes, things would be really slow around here.”"
     ];
     document.getElementById('bioQuote').innerText=qs[Math.floor(Math.random()*qs.length)];
-    document.getElementById('themeToggle').addEventListener('change',function(){document.body.classList.toggle('light-mode',this.checked)});
-    
-    initDna(); loadState();
+
+    document.getElementById('themeToggle').addEventListener('change', function() {
+        document.body.classList.toggle('light-mode', this.checked);
+    });
+
+    loadState();
+    initDna();
 </script>
 </body>
 </html>
